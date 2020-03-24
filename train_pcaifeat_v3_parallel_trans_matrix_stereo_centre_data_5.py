@@ -14,7 +14,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 import threading
 import time
 import cv2
-sys.path.append('/data/lyh/lab/robotcar-dataset-sdk/python')
+sys.path.append('/home/lyh/lab/robotcar-dataset-sdk/python')
 from camera_model import CameraModel
 from transform import build_se3_transform
 import numpy as np
@@ -28,11 +28,11 @@ pool = ThreadPool(10)
 # is rand init 
 RAND_INIT = False
 # model path
-MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_fusion/model_00180060.ckpt"
-PC_MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_pc/pc_model_00174058.ckpt"
-IMG_MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_fusion_1/img_model_00348116.ckpt"
+MODEL_PATH = ""
+PC_MODEL_PATH = ""
+IMG_MODEL_PATH = "/home/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/model/baseline/img_model_00348116.ckpt"
 # log path
-LOG_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/log/train_save_trans_data_5"
+LOG_PATH = "/home/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/log/train_save_trans_data_5"
 # 1 for point cloud only, 2 for image only, 3 for pc&img&fc
 TRAINING_MODE = 3
 #TRAIN_ALL = True
@@ -88,17 +88,17 @@ G_CAMERA_POSESOURCE = None
 def init_camera_model_posture():
 	global CAMERA_MODEL
 	global G_CAMERA_POSESOURCE
-	models_dir = "/data/lyh/lab/robotcar-dataset-sdk/models/"
+	models_dir = "/home/lyh/lab/robotcar-dataset-sdk/models/"
 	CAMERA_MODEL = CameraModel(models_dir, "stereo_centre")
 	#read the camera and ins extrinsics
-	extrinsics_path = "/data/lyh/lab/robotcar-dataset-sdk/extrinsics/stereo.txt"
+	extrinsics_path = "/home/lyh/lab/robotcar-dataset-sdk/extrinsics/stereo.txt"
 	print(extrinsics_path)
 	with open(extrinsics_path) as extrinsics_file:
 		extrinsics = [float(x) for x in next(extrinsics_file).split(' ')]
 	G_camera_vehicle = build_se3_transform(extrinsics)
 	print(G_camera_vehicle)
 	
-	extrinsics_path = "/data/lyh/lab/robotcar-dataset-sdk/extrinsics/ins.txt"
+	extrinsics_path = "/home/lyh/lab/robotcar-dataset-sdk/extrinsics/ins.txt"
 	print(extrinsics_path)
 	with open(extrinsics_path) as extrinsics_file:
 		extrinsics = [float(x) for x in next(extrinsics_file).split(' ')]
@@ -723,7 +723,7 @@ def load_data(train_file_idxs):
 				posfile = "%s_imgpos.txt"%(load_pc_filenames[i][:-4])
 				cur_pc = pc_data[i]
 				
-				np.savetxt("pc_%d.txt"%(i),cur_pc,fmt="%.3f",delimiter=",")
+				#np.savetxt("pc_%d.txt"%(i),cur_pc,fmt="%.3f",delimiter=",")
 				
 				cur_pc = np.hstack([cur_pc, np.ones((cur_pc.shape[0],1))])
 				imgpos = {}
@@ -750,10 +750,8 @@ def load_data(train_file_idxs):
 				cur_pc = np.dot(T,cur_pc.T)
 				pc_data[i] = cur_pc[0:3,:].T
 				
-				np.savetxt("pc_norm_%d.txt"%(i),pc_data[i],fmt="%.3f",delimiter=",")
-				print("pc_norm_%d.txt"%(i))
-		input()
-		exit()
+				#np.savetxt("pc_norm_%d.txt"%(i),pc_data[i],fmt="%.3f",delimiter=",")
+				#print("pc_norm_%d.txt"%(i))
 				
 				
 		TRAINING_DATA_LOCK.acquire()
@@ -851,12 +849,12 @@ def main():
 	#init tensorflow Session
 	with tf.Session(config=config) as sess:
 		#init all the variable
-		#init_network_variable(sess,train_saver)
-		#train_writer = tf.summary.FileWriter(LOG_PATH, sess.graph)
+		init_network_variable(sess,train_saver)
+		train_writer = tf.summary.FileWriter(LOG_PATH, sess.graph)
 		
 		#init_training thread
-		#training_thread = threading.Thread(target=training, args=(sess,train_saver,train_writer,ops,))
-		#training_thread.start()
+		training_thread = threading.Thread(target=training, args=(sess,train_saver,train_writer,ops,))
+		training_thread.start()
 
 		#start training
 		for ep in range(EPOCH):
@@ -873,7 +871,7 @@ def main():
 				
 			load_data_thread.join()
 		
-		#training_thread.join()
+		training_thread.join()
 						
 					
 if __name__ == "__main__":

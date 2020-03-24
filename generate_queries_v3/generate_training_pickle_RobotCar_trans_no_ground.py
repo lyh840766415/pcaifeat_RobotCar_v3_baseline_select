@@ -9,7 +9,7 @@ import pickle
 import random
 
 #global variable
-PC_PATH = "/data/lyh/RobotCar/pc_img_without_ground_0320/20m_10dis_color_resize/"
+PC_PATH = "/home/User2/lyh/dataset/RobotCar/pc_img_without_ground_0320/20m_10dis_color_resize"
 filename = "pointcloud_locations_20m_10dis.csv"
 pointcloud_fols="/pointclouds/"
 #bounding box for test set

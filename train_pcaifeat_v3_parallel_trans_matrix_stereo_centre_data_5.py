@@ -32,7 +32,7 @@ MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_fusion/m
 PC_MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_pc/pc_model_00174058.ckpt"
 IMG_MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_fusion_1/img_model_00348116.ckpt"
 # log path
-LOG_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/log/train_save_trans_data_4"
+LOG_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/log/train_save_trans_data_5"
 # 1 for point cloud only, 2 for image only, 3 for pc&img&fc
 TRAINING_MODE = 3
 #TRAIN_ALL = True
@@ -722,6 +722,9 @@ def load_data(train_file_idxs):
 			for i in range(len(pc_data)):
 				posfile = "%s_imgpos.txt"%(load_pc_filenames[i][:-4])
 				cur_pc = pc_data[i]
+				
+				np.savetxt("pc_%d.txt"%(i),cur_pc,fmt="%.3f",delimiter=",")
+				
 				cur_pc = np.hstack([cur_pc, np.ones((cur_pc.shape[0],1))])
 				imgpos = {}
 				with open(posfile) as imgpos_file:
@@ -739,8 +742,20 @@ def load_data(train_file_idxs):
 				cur_pc = cur_pc - mean_cur_pc
 				mean_cur_pc = cur_pc.mean(axis = 0)
 				cur_pc = cur_pc - mean_cur_pc
-				pc_data[i] = cur_pc
-
+				
+				scale = 0.5/(np.sum(np.linalg.norm(cur_pc, axis=1, keepdims=True))/cur_pc.shape[0])
+				T = scale*np.eye(4)
+				T[-1,-1] = 1
+				cur_pc = np.hstack([cur_pc, np.ones((cur_pc.shape[0],1))])
+				cur_pc = np.dot(T,cur_pc.T)
+				pc_data[i] = cur_pc[0:3,:].T
+				
+				np.savetxt("pc_norm_%d.txt"%(i),pc_data[i],fmt="%.3f",delimiter=",")
+				print("pc_norm_%d.txt"%(i))
+		input()
+		exit()
+				
+				
 		TRAINING_DATA_LOCK.acquire()
 		TRAINING_DATA.append([pc_data,img_data,trans_data])
 		TRAINING_DATA_LOCK.release()
@@ -836,12 +851,12 @@ def main():
 	#init tensorflow Session
 	with tf.Session(config=config) as sess:
 		#init all the variable
-		init_network_variable(sess,train_saver)
-		train_writer = tf.summary.FileWriter(LOG_PATH, sess.graph)
+		#init_network_variable(sess,train_saver)
+		#train_writer = tf.summary.FileWriter(LOG_PATH, sess.graph)
 		
 		#init_training thread
-		training_thread = threading.Thread(target=training, args=(sess,train_saver,train_writer,ops,))
-		training_thread.start()
+		#training_thread = threading.Thread(target=training, args=(sess,train_saver,train_writer,ops,))
+		#training_thread.start()
 
 		#start training
 		for ep in range(EPOCH):
@@ -858,7 +873,7 @@ def main():
 				
 			load_data_thread.join()
 		
-		training_thread.join()
+		#training_thread.join()
 						
 					
 if __name__ == "__main__":

@@ -28,11 +28,11 @@ pool = ThreadPool(10)
 # is rand init 
 RAND_INIT = False
 # model path
-MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/log/train_save_trans_data_5/model_00192064.ckpt"
+MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_fusion/model_00180060.ckpt"
 PC_MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_pc/pc_model_00174058.ckpt"
 IMG_MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_fusion_1/img_model_00348116.ckpt"
 # log path
-LOG_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/log/train_save_trans_data_5"
+LOG_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/log/train_save_trans_data_6"
 # 1 for point cloud only, 2 for image only, 3 for pc&img&fc
 TRAINING_MODE = 3
 #TRAIN_ALL = True
@@ -43,7 +43,7 @@ quadruplet = True
 
 
 # Epoch & Batch size &FINAL EMBBED SIZE & learning rate
-EPOCH = 12
+EPOCH = 20
 LOAD_BATCH_SIZE = 100
 FEAT_BARCH_SIZE = 1
 LOAD_FEAT_RATIO = LOAD_BATCH_SIZE//FEAT_BARCH_SIZE
@@ -64,7 +64,7 @@ MARGIN1 = 0.5
 MARGIN2 = 0.2
 
 #Train file index & pc img matching
-TRAIN_FILE = 'generate_queries_v3/training_queries_RobotCar_trans_ground.pickle'
+TRAIN_FILE = 'generate_queries_v3/training_queries_RobotCar_trans_no_ground.pickle'
 TRAINING_QUERIES = get_queries_dict(TRAIN_FILE)
 
 #cur_load for get_batch_keys
@@ -108,7 +108,7 @@ def init_camera_model_posture():
 	
 	
 def get_learning_rate(epoch):
-	learning_rate = BASE_LEARNING_RATE*((0.9)**((epoch+8)//5))
+	learning_rate = BASE_LEARNING_RATE*((0.9)**(epoch//5))
 	learning_rate = tf.maximum(learning_rate, 0.00001) # CLIP THE LEARNING RATE!
 	return learning_rate
 
@@ -158,7 +158,7 @@ def init_fusion_network(pc_feat,img_feat):
 
 def init_pcainetwork():
 	#training step
-	step = tf.Variable(192065)
+	step = tf.Variable(0)
 	pc_trans_feat = None	
 	#init sub-network
 	if TRAINING_MODE != 2:
@@ -352,12 +352,12 @@ def init_network_variable(sess,train_saver):
 		return
 	
 	if TRAINING_MODE == 3:
-		train_saver['all_saver'].restore(sess,MODEL_PATH)
-		print("all_model restored")
+		#train_saver['all_saver'].restore(sess,MODEL_PATH)
+		#print("all_model restored")
 		#train_saver['pc_saver'].restore(sess,PC_MODEL_PATH)
 		#print("pc_model restored")
-		#train_saver['img_saver'].restore(sess,IMG_MODEL_PATH)
-		#print("img_model restored")
+		train_saver['img_saver'].restore(sess,IMG_MODEL_PATH)
+		print("img_model restored")
 		
 		return
 
@@ -435,6 +435,7 @@ def train_one_step(sess,ops,train_feed_dict,train_writer):
 			#pc_trans_feat,summary,step,all_loss,_,= sess.run([ops["pc_trans_feat"],ops["merged"],ops["step"],ops["all_loss"],ops["all_train_op"]],feed_dict = train_feed_dict)
 			summary,step,all_loss,_,= sess.run([ops["merged"],ops["step"],ops["all_loss"],ops["all_train_op"]],feed_dict = train_feed_dict)
 			print("batch num = %d , all_loss = %f"%(step, all_loss))
+			
 			'''
 			print('-------------------------------------------------------------')
 			print(pc_trans_feat.shape)
@@ -444,11 +445,12 @@ def train_one_step(sess,ops,train_feed_dict,train_writer):
 			print('-------------------------------------------------------------')
 			aa = np.sum(pc_trans_feat1,axis=2)
 			plt.imshow(aa)
-			plt.savefig("test1.png")
+			plt.savefig("test_no_ground_1.png")
 			#plt.show()
 			input()
 			exit()
 			'''
+			
 			
 			
 			
@@ -643,7 +645,7 @@ def cal_trans_data(pc_dict,cnt = -1):
 		plt.ylim(240, 0)
 		plt.xticks([])
 		plt.yticks([])
-		plt.savefig("test.png")
+		plt.savefig("test_no_ground.png")
 		plt.cla()
 		
 	
@@ -711,7 +713,7 @@ def load_data(train_file_idxs):
 		load_pc_filenames,load_img_filenames = get_load_batch_filename(load_batch_keys,quadruplet)
 		
 		#load pc&img data from file
-		pc_data,img_data = load_img_pc(load_pc_filenames,load_img_filenames,pool,False)
+		pc_data,img_data = load_img_pc(load_pc_filenames,load_img_filenames,pool,True)
 		
 		
 		#plt.imshow(img_data[0])
@@ -720,24 +722,7 @@ def load_data(train_file_idxs):
 		if TRAINING_MODE != 2:
 			trans_data = get_trans_datas(load_pc_filenames,pc_data,pool)
 			for i in range(len(pc_data)):
-				posfile = "%s_imgpos.txt"%(load_pc_filenames[i][:-4])
 				cur_pc = pc_data[i]
-				
-				#np.savetxt("pc_%d.txt"%(i),cur_pc,fmt="%.3f",delimiter=",")
-				
-				cur_pc = np.hstack([cur_pc, np.ones((cur_pc.shape[0],1))])
-				imgpos = {}
-				with open(posfile) as imgpos_file:
-					for line in imgpos_file:
-						pos = [x for x in line.split(' ')]
-						for j in range(len(pos)-2):
-							pos[j+1] = float(pos[j+1])
-						imgpos[pos[0]] = np.reshape(np.array(pos[1:-1]),[4,4])
-				#translate pointcloud to image coordinate
-				cur_pc = np.dot(np.linalg.inv(imgpos["stereo_centre"]),cur_pc.T)
-				cur_pc = np.dot(G_CAMERA_POSESOURCE, cur_pc)
-				cur_pc = cur_pc[0:3,:].T
-	
 				mean_cur_pc = cur_pc.mean(axis = 0)
 				cur_pc = cur_pc - mean_cur_pc
 				mean_cur_pc = cur_pc.mean(axis = 0)
@@ -746,19 +731,44 @@ def load_data(train_file_idxs):
 				scale = 0.5/(np.sum(np.linalg.norm(cur_pc, axis=1, keepdims=True))/cur_pc.shape[0])
 				T = scale*np.eye(4)
 				T[-1,-1] = 1
+
 				cur_pc = np.hstack([cur_pc, np.ones((cur_pc.shape[0],1))])
 				cur_pc = np.dot(T,cur_pc.T)
 				pc_data[i] = cur_pc[0:3,:].T
-				
-				#np.savetxt("pc_norm_%d.txt"%(i),pc_data[i],fmt="%.3f",delimiter=",")
-				#print("pc_norm_%d.txt"%(i))		
-				
+		
+		'''
+		for i in range(len(pc_data)):
+			cur_pc = pc_data[i]
+			print(cur_pc.mean(axis = 0))
+		exit()
+		#np.savetxt("hehe.txt",pc_data[0],delimiter=",",fmt="%.3f")
+		trans_data = np.array(trans_data)
+		print(trans_data.shape)
+		print(pc_data.shape)
+		print(img_data.shape)
+		
+		aa = np.sum(trans_data[0],1).reshape([8,8])
+		print(np.sum(aa))
+		plt.figure(1)
+		plt.imshow(aa.T)
+		plt.show()
+		'''
+		'''
+		for i in range(900):
+			np.savetxt("pc_%d.txt"%(i),pc_data[i,:,:],delimiter=" ",fmt = "%.3f")
+			cv2.imwrite("img_%d.png"%(i),np.squeeze(img_data[i,:,:,:]))
+			
+		exit()
+		'''
 		TRAINING_DATA_LOCK.acquire()
 		TRAINING_DATA.append([pc_data,img_data,trans_data])
 		TRAINING_DATA_LOCK.release()
 		
 		cnt = cnt + 1
 		print("load one batch",cnt)
+		
+		#input()
+		#exit()
 		
 	return
 

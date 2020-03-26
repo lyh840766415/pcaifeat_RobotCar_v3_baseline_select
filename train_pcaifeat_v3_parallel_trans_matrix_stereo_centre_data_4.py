@@ -28,7 +28,7 @@ pool = ThreadPool(10)
 # is rand init 
 RAND_INIT = False
 # model path
-MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_fusion/model_00180060.ckpt"
+MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/log/train_save_trans_data_4/model_00345115.ckpt"
 PC_MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_pc/pc_model_00174058.ckpt"
 IMG_MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_1/log/train_save_trans_fusion_1/img_model_00348116.ckpt"
 # log path
@@ -43,12 +43,12 @@ quadruplet = True
 
 
 # Epoch & Batch size &FINAL EMBBED SIZE & learning rate
-EPOCH = 20
+EPOCH = 5
 LOAD_BATCH_SIZE = 100
 FEAT_BARCH_SIZE = 1
 LOAD_FEAT_RATIO = LOAD_BATCH_SIZE//FEAT_BARCH_SIZE
 EMBBED_SIZE = 1000
-BASE_LEARNING_RATE = 5e-5
+BASE_LEARNING_RATE = 3.645e-5
 
 #pos num,neg num,other neg num,all_num
 POS_NUM = 2
@@ -158,7 +158,7 @@ def init_fusion_network(pc_feat,img_feat):
 
 def init_pcainetwork():
 	#training step
-	step = tf.Variable(0)
+	step = tf.Variable(345116)
 	pc_trans_feat = None	
 	#init sub-network
 	if TRAINING_MODE != 2:
@@ -352,12 +352,12 @@ def init_network_variable(sess,train_saver):
 		return
 	
 	if TRAINING_MODE == 3:
-		#train_saver['all_saver'].restore(sess,MODEL_PATH)
-		#print("all_model restored")
+		train_saver['all_saver'].restore(sess,MODEL_PATH)
+		print("all_model restored")
 		#train_saver['pc_saver'].restore(sess,PC_MODEL_PATH)
 		#print("pc_model restored")
-		train_saver['img_saver'].restore(sess,IMG_MODEL_PATH)
-		print("img_model restored")
+		#train_saver['img_saver'].restore(sess,IMG_MODEL_PATH)
+		#print("img_model restored")
 		
 		return
 

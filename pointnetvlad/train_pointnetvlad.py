@@ -8,8 +8,6 @@ import os
 import sys
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
-sys.path.append('../')
-from loading_input_v3 import get_pc_img_match_dict
 from pointnetvlad_cls import *
 from loading_pointclouds import *
 from sklearn.neighbors import NearestNeighbors
@@ -19,7 +17,7 @@ from sklearn.neighbors import KDTree
 #params
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=1, help='GPU to use [default: GPU 1]')
-parser.add_argument('--log_dir', default='log_trans/', help='Log dir [default: log]')
+parser.add_argument('--log_dir', default='log/', help='Log dir [default: log]')
 parser.add_argument('--positives_per_query', type=int, default=2, help='Number of potential positives in each training tuple [default: 2]')
 parser.add_argument('--negatives_per_query', type=int, default=18, help='Number of definite negatives in each training tuple [default: 18]')
 parser.add_argument('--max_epoch', type=int, default=20, help='Epoch to run [default: 20]')
@@ -50,8 +48,7 @@ MARGIN2 = FLAGS.margin_2
 
 TRAIN_FILE = 'generating_queries/training_queries_baseline.pickle'
 TEST_FILE = 'generating_queries/test_queries_baseline.pickle'
-BASE_PATH='/data/lyh/RobotCar/pc_img_ground_0310/'
-
+BASE_PATH = "/data/lyh/RobotCar/pc_img_without_ground_0320"
 
 LOG_DIR = FLAGS.log_dir
 if not os.path.exists(LOG_DIR): os.mkdir(LOG_DIR)
@@ -93,7 +90,7 @@ def get_learning_rate(epoch):
     learning_rate = BASE_LEARNING_RATE*((0.9)**(epoch//5))
     learning_rate = tf.maximum(learning_rate, 0.00001) # CLIP THE LEARNING RATE!
     return learning_rate        
-	
+
 def train():
     global HARD_NEGATIVES
     with tf.Graph().as_default():
@@ -165,8 +162,8 @@ def train():
         print("Initialized")
 
         # Restore a model
-        #saver.restore(sess, os.path.join(LOG_DIR, "model.ckpt"))
-        #print("Model restored.")
+        # saver.restore(sess, os.path.join(LOG_DIR, "model.ckpt"))
+        # print("Model restored.")
 
 
         ops = {'query': query,
@@ -242,7 +239,7 @@ def train_one_epoch(sess, ops, train_writer, test_writer, epoch, saver):
         		
         		batch_keys.append(cur_key)
         		CUR_LOAD = CUR_LOAD + 1
-        		
+
         q_tuples=[]
 
         faulty_tuple=False
@@ -255,7 +252,6 @@ def train_one_epoch(sess, ops, train_writer, test_writer, epoch, saver):
             #no cached feature vectors               
             if(len(TRAINING_LATENT_VECTORS)==0):
                 q_tuples.append(get_query_tuple(TRAINING_QUERIES[batch_keys[j]],POSITIVES_PER_QUERY,NEGATIVES_PER_QUERY, TRAINING_QUERIES, hard_neg=[], other_neg=True))
-                print("------------------------------------------------------------------------------")
                 # q_tuples.append(get_rotated_tuple(TRAINING_QUERIES[batch_keys[j]],POSITIVES_PER_QUERY,NEGATIVES_PER_QUERY, TRAINING_QUERIES, hard_neg=[], other_neg=True))
                 # q_tuples.append(get_jittered_tuple(TRAINING_QUERIES[batch_keys[j]],POSITIVES_PER_QUERY,NEGATIVES_PER_QUERY, TRAINING_QUERIES, hard_neg=[], other_neg=True))
 
@@ -265,7 +261,6 @@ def train_one_epoch(sess, ops, train_writer, test_writer, epoch, saver):
                 negatives=TRAINING_QUERIES[batch_keys[j]]['negatives'][0:sampled_neg]
                 hard_negs= get_random_hard_negatives(query, negatives, num_to_take)
                 print(hard_negs)
-                print("******************************************************************************")
                 q_tuples.append(get_query_tuple(TRAINING_QUERIES[batch_keys[j]],POSITIVES_PER_QUERY,NEGATIVES_PER_QUERY, TRAINING_QUERIES, hard_negs, other_neg=True))
                 # q_tuples.append(get_rotated_tuple(TRAINING_QUERIES[batch_keys[j]],POSITIVES_PER_QUERY,NEGATIVES_PER_QUERY, TRAINING_QUERIES, hard_negs, other_neg=True))
                 # q_tuples.append(get_jittered_tuple(TRAINING_QUERIES[batch_keys[j]],POSITIVES_PER_QUERY,NEGATIVES_PER_QUERY, TRAINING_QUERIES, hard_negs, other_neg=True))
@@ -276,7 +271,6 @@ def train_one_epoch(sess, ops, train_writer, test_writer, epoch, saver):
                 hard_negs= get_random_hard_negatives(query, negatives, num_to_take)
                 hard_negs= list(set().union(HARD_NEGATIVES[batch_keys[j]], hard_negs))
                 print('hard',hard_negs)
-                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 q_tuples.append(get_query_tuple(TRAINING_QUERIES[batch_keys[j]],POSITIVES_PER_QUERY,NEGATIVES_PER_QUERY, TRAINING_QUERIES, hard_negs, other_neg=True))           
                 # q_tuples.append(get_rotated_tuple(TRAINING_QUERIES[batch_keys[j]],POSITIVES_PER_QUERY,NEGATIVES_PER_QUERY, TRAINING_QUERIES, hard_negs, other_neg=True))           
                 # q_tuples.append(get_jittered_tuple(TRAINING_QUERIES[batch_keys[j]],POSITIVES_PER_QUERY,NEGATIVES_PER_QUERY, TRAINING_QUERIES, hard_negs, other_neg=True))

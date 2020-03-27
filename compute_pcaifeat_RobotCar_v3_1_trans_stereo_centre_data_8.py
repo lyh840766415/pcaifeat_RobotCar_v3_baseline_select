@@ -23,15 +23,15 @@ TRAINING_MODE = 3
 BATCH_SIZE = 100
 EMBBED_SIZE = 1000
 
-DATABASE_FILE= 'generate_queries_v3/stereo_centre_trans_RobotCar_ground_oxford_evaluation_database.pickle'
-QUERY_FILE= 'generate_queries_v3/stereo_centre_trans_RobotCar_ground_oxford_evaluation_query.pickle'
+DATABASE_FILE= 'generate_queries_v3/stereo_centre_trans_RobotCar_no_ground_oxford_evaluation_database.pickle'
+QUERY_FILE= 'generate_queries_v3/stereo_centre_trans_RobotCar_no_ground_oxford_evaluation_query.pickle'
 DATABASE_SETS= get_sets_dict(DATABASE_FILE)
 QUERY_SETS= get_sets_dict(QUERY_FILE)
 
 #model_path & image path
 PC_MODEL_PATH = ""
 IMG_MODEL_PATH = ""
-MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/log/train_save_trans_data_4/model_00333111.ckpt"
+MODEL_PATH = "/data/lyh/lab/pcaifeat_RobotCar_v3_baseline_select/log/train_save_trans_data_8/model_00441147.ckpt"
 
 #camera model and posture
 CAMERA_MODEL = None
@@ -290,7 +290,7 @@ def get_latent_vectors(sess,ops,dict_to_process):
 		
 		begin_time = time()
 		
-		pc_data,img_data = load_img_pc(load_pc_filenames,load_img_filenames,pool,False)
+		pc_data,img_data = load_img_pc(load_pc_filenames,load_img_filenames,pool,True)
 		trans_data = None
 		if TRAINING_MODE != 2:
 			trans_data = get_trans_datas(load_pc_filenames,pc_data,pool)
@@ -309,13 +309,19 @@ def get_latent_vectors(sess,ops,dict_to_process):
 				cur_pc = np.dot(np.linalg.inv(imgpos["stereo_centre"]),cur_pc.T)
 				cur_pc = np.dot(G_CAMERA_POSESOURCE, cur_pc)
 				cur_pc = cur_pc[0:3,:].T
-					
+	
 				mean_cur_pc = cur_pc.mean(axis = 0)
 				cur_pc = cur_pc - mean_cur_pc
 				mean_cur_pc = cur_pc.mean(axis = 0)
 				cur_pc = cur_pc - mean_cur_pc
-				pc_data[i] = cur_pc
-		
+				
+				scale = 0.5/(np.sum(np.linalg.norm(cur_pc, axis=1, keepdims=True))/cur_pc.shape[0])
+				T = scale*np.eye(4)
+				T[-1,-1] = 1
+				cur_pc = np.hstack([cur_pc, np.ones((cur_pc.shape[0],1))])
+				cur_pc = np.dot(T,cur_pc.T)
+				pc_data[i] = cur_pc[0:3,:].T
+				
 		end_time = time()
 		
 		print ('load time ',end_time - begin_time)
@@ -340,7 +346,7 @@ def get_latent_vectors(sess,ops,dict_to_process):
 	
 	load_pc_filenames,load_img_filenames = get_load_batch_filename(dict_to_process,batch_keys,True,remind_index)
 	
-	pc_data,img_data = load_img_pc(load_pc_filenames,load_img_filenames,pool,False)
+	pc_data,img_data = load_img_pc(load_pc_filenames,load_img_filenames,pool,True)
 	
 	trans_data = None
 	if TRAINING_MODE != 2:
@@ -360,13 +366,18 @@ def get_latent_vectors(sess,ops,dict_to_process):
 			cur_pc = np.dot(np.linalg.inv(imgpos["stereo_centre"]),cur_pc.T)
 			cur_pc = np.dot(G_CAMERA_POSESOURCE, cur_pc)
 			cur_pc = cur_pc[0:3,:].T
-			
+	
 			mean_cur_pc = cur_pc.mean(axis = 0)
 			cur_pc = cur_pc - mean_cur_pc
 			mean_cur_pc = cur_pc.mean(axis = 0)
 			cur_pc = cur_pc - mean_cur_pc
-			pc_data[i] = cur_pc
-
+				
+			scale = 0.5/(np.sum(np.linalg.norm(cur_pc, axis=1, keepdims=True))/cur_pc.shape[0])
+			T = scale*np.eye(4)
+			T[-1,-1] = 1
+			cur_pc = np.hstack([cur_pc, np.ones((cur_pc.shape[0],1))])
+			cur_pc = np.dot(T,cur_pc.T)
+			pc_data[i] = cur_pc[0:3,:].T
 	
 	train_feed_dict = prepare_batch_data(pc_data,img_data,trans_data,ops)
 	

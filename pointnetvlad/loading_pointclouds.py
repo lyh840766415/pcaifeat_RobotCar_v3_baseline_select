@@ -2,11 +2,39 @@ import os
 import pickle
 import numpy as np
 import random
+import sys
+sys.path.append('/data/lyh/lab/robotcar-dataset-sdk/python')
+from camera_model import CameraModel
+from transform import build_se3_transform
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_PATH='/data/lyh/RobotCar/pc_img_ground_0310/'
+BASE_PATH = "/data/lyh/RobotCar/pc_img_without_ground_0320"
 print(BASE_PATH)
 
+G_CAMERA_POSESOURCE = None
+
+def init_camera_model_posture():
+	global CAMERA_MODEL
+	global G_CAMERA_POSESOURCE
+	models_dir = "/data/lyh/lab/robotcar-dataset-sdk/models/"
+	CAMERA_MODEL = CameraModel(models_dir, "stereo_centre")
+	#read the camera and ins extrinsics
+	extrinsics_path = "/data/lyh/lab/robotcar-dataset-sdk/extrinsics/stereo.txt"
+	print(extrinsics_path)
+	with open(extrinsics_path) as extrinsics_file:
+		extrinsics = [float(x) for x in next(extrinsics_file).split(' ')]
+	G_camera_vehicle = build_se3_transform(extrinsics)
+	print(G_camera_vehicle)
+	
+	extrinsics_path = "/data/lyh/lab/robotcar-dataset-sdk/extrinsics/ins.txt"
+	print(extrinsics_path)
+	with open(extrinsics_path) as extrinsics_file:
+		extrinsics = [float(x) for x in next(extrinsics_file).split(' ')]
+	G_ins_vehicle = build_se3_transform(extrinsics)
+	print(G_ins_vehicle)
+	G_CAMERA_POSESOURCE = G_camera_vehicle*G_ins_vehicle
+	
+init_camera_model_posture()
 #BASE_PATH = "/media/deep-three/Deep_Store/CVPR2018/benchmark_datasets/"
 
 def get_queries_dict(filename):
@@ -24,19 +52,42 @@ def get_sets_dict(filename):
 		return trajectories
 
 def load_pc_file(filename):
+	filename = os.path.join(BASE_PATH,filename)
+	posfile = "%s_imgpos.txt"%(filename[:-4])
 	#returns Nx3 matrix
-	pc=np.fromfile(os.path.join(BASE_PATH,filename), dtype=np.float32)
+	pc=np.fromfile(filename, dtype=np.float64)
 
 	if(pc.shape[0]!= 4096*3):
 		print("Error in pointcloud shape")
 		return np.array([])
 
-	pc=np.reshape(pc,(pc.shape[0]//3,3))
+	pc = np.reshape(pc,(pc.shape[0]//3,3))
+	pc = np.hstack([pc, np.ones((pc.shape[0],1))])
+	imgpos = {}
+	with open(posfile) as imgpos_file:
+		for line in imgpos_file:
+			pos = [x for x in line.split(' ')]
+			for j in range(len(pos)-2):
+				pos[j+1] = float(pos[j+1])
+			imgpos[pos[0]] = np.reshape(np.array(pos[1:-1]),[4,4])
+	
+	#translate pointcloud to image coordinate
+	pc = np.dot(np.linalg.inv(imgpos["stereo_centre"]),pc.T)
+	pc = np.dot(G_CAMERA_POSESOURCE, pc)
+	pc = pc[0:3,:].T
 	
 	mean_pc = pc.mean(axis = 0)
 	pc = pc - mean_pc
 	mean_pc = pc.mean(axis = 0)
 	pc = pc - mean_pc
+	
+	scale = 0.5/(np.sum(np.linalg.norm(pc, axis=1, keepdims=True))/pc.shape[0])
+	T = scale*np.eye(4)
+	T[-1,-1] = 1
+	pc = np.hstack([pc, np.ones((pc.shape[0],1))])
+	pc = np.dot(T,pc.T)
+	pc = pc[0:3,:].T
+	
 	return pc
 
 def load_pc_files(filenames):

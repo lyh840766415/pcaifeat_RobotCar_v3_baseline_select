@@ -7,7 +7,7 @@ import pickle
 import random
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-base_path = "/data/lyh/RobotCar/pc_img_ground_0310"
+base_path = "/data/lyh/RobotCar/pc_img_without_ground_0320"
 
 runs_folder= "20m_10dis_color_resize/"
 filename = "pointcloud_locations_20m_10dis.csv"

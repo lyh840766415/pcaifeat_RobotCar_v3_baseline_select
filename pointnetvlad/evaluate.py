@@ -38,12 +38,12 @@ DECAY_RATE = FLAGS.decay_rate
 RESULTS_FOLDER="results/"
 if not os.path.exists(RESULTS_FOLDER): os.mkdir(RESULTS_FOLDER)
 
-DATABASE_FILE= '../generate_queries_v3/mono_left_trans_RobotCar_oxford_evaluation_database.pickle'
-QUERY_FILE= '../generate_queries_v3/mono_left_trans_RobotCar_oxford_evaluation_query.pickle'
+DATABASE_FILE= 'generating_queries/oxford_evaluation_database.pickle'
+QUERY_FILE= 'generating_queries/oxford_evaluation_query.pickle'
 
-LOG_DIR = 'log_trans/'
+LOG_DIR = 'log/'
 output_file= RESULTS_FOLDER +'results.txt'
-model_file= "model_00174101.ckpt"
+model_file= "model.ckpt"
 
 DATABASE_SETS= get_sets_dict(DATABASE_FILE)
 QUERY_SETS= get_sets_dict(QUERY_FILE)
@@ -106,7 +106,8 @@ def evaluate():
         config.allow_soft_placement = True
         config.log_device_placement = False
         sess = tf.Session(config=config)
-        
+
+
         saver.restore(sess, os.path.join(LOG_DIR, model_file))
         print("Model restored.")
 
